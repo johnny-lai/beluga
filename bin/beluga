@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+require 'beluga'
+
+Beluga::Docker.run "bundle exec rspec #{$*.join(" ")}", "-it"
