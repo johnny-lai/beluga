@@ -1,0 +1,9 @@
+images:
+  devbase:
+    tag: beluga-devbase:%s
+  testbase:
+    tag: beluga-testbase:%s
+commands:
+  rspec:
+    exe: bundle exec rspec %s
+    image: devbase

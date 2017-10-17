@@ -12,10 +12,11 @@ Gem::Specification.new do |s|
   s.summary     = "Creating docker images with pre-requisites for your rails app"
   s.license     = "MIT"
 
-  s.files = Dir["{bin,app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.rdoc"]
-  s.test_files = Dir["test/**/*"]
+  s.executables << "beluga"
+  s.files       = `git ls-files`.split
+  s.test_files  = Dir["test/**/*"]
 
   s.add_dependency "rake"
-  
+
   s.add_development_dependency "minitest"
 end

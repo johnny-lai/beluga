@@ -1,4 +1,42 @@
 #!/usr/bin/env ruby
 require 'beluga'
 
-Beluga::Docker.run "bundle exec rspec #{$*.join(" ")}", "-it"
+app = Beluga::RailsApp.new(".")
+
+command = ARGV.shift
+case command
+when "images"
+  subcommand = ARGV.shift
+  image = ARGV.shift || "runner"
+
+  img = app.images[image]
+  unless img
+    puts STDERR, "Unknown image: #{image}"
+    exit 1
+  end
+
+  case subcommand
+  when "build", "push", "pull", "clean"
+    img.send(subcommand)
+  when "tag"
+    puts img.image
+  else
+    STDERR.puts "Unknown command: images #{subcommand}"
+  end
+when "digest"
+  puts app.digest
+else
+  cmd = app.commands[command]
+  unless cmd
+    STDERR.puts "Unknown command: #{command}"
+    exit 1
+  end
+
+  img = app.images[cmd.image]
+  unless img
+    STDERR.puts "Unknown image: #{cmd.image}"
+    exit 1
+  end
+
+  img.run(cmd, ARGV, "-it")
+end
