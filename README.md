@@ -19,7 +19,26 @@ It uses the MIT-LICENSE.
 
 ## Configuration
 
-Add new commands and configure images using config/beluga.yml
+Add new commands and configure images using config/beluga.yml. If you provide configuration
+for existing commands/images, the settings will be merged with beluga's config/default.yml.
+
+```
+images:
+  <image-name>:
+    tag: -- Docker Label. %s is the digest
+    id_rsa: -- Where to find your id_rsa file. Defaults to ~/.ssh/id_rsa>
+    from: -- From image name. Example 'devbase'
+    extra_build_instructions: -- Extra Dockerfile instructions that are added to end
+commands:
+  <command-name>:
+    command: -- Command to run. %s is a replacement for all the arguments.
+    image: -- Name of docker image to run command in
+    extra_hosts:
+      - -- Extra hosts. For example: "db:<%= host_public_ip %>"
+```
+The configuration file is ERB aware, and has the following extra functions:
+
+* `host_public_ip`: Returns the first public IP of the host
 
 ## Limitations
 
@@ -63,4 +82,16 @@ hello from devbase
 Run the following from your rails application root folder.
 ```
 $ beluga rspec spec/your_test
+```
+
+### Build the testbase image
+
+```
+$ beluga -i testbase image build
+```
+
+### Start bash in the testbase image
+
+```
+$ beluga -i testbase exec bash
 ```

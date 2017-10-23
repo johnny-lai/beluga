@@ -5,6 +5,7 @@ images:
   testbase:
     tag: beluga-testbase:%s
     id_rsa: ~/.ssh/id_rsa
+    from: devbase
 commands:
   rspec:
     command: bundle exec rspec %s

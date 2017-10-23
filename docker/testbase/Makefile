@@ -1,10 +1,12 @@
 include ../make/env.mk
 
-BUILD_SRC=$(SRCROOT)/dockerfile.erb
+DOCKERFILE = $(BUILD_ROOT)/testbase.dockerfile
+
+BUILD_SRC = $(SRCROOT)/dockerfile.erb
 
 build: $(BUILD_SRC)
-	erb $(SRCROOT)/dockerfile.erb > $(BUILD_ROOT)/testbase.dockerfile
-	$(DOCKER) build -f $(BUILD_ROOT)/testbase.dockerfile -t $(APP_DOCKER_LABEL) $(BUILD_ROOT); \
+	beluga -a $(RAILS_ROOT) -i testbase image dockerfile > $(DOCKERFILE)
+	$(DOCKER) build -f $(DOCKERFILE) -t $(APP_DOCKER_LABEL) $(BUILD_ROOT)
 
 push:
 	$(DOCKER) push $(APP_DOCKER_LABEL)

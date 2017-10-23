@@ -2,18 +2,19 @@ include ../make/env.mk
 
 ID_RSA ?= ~/.ssh/id_rsa
 RUBY_VERSION = $(shell cat $(RAILS_ROOT)/.ruby-version)
+DOCKERFILE = $(BUILD_ROOT)/runner.dockerfile
 
 BUILD_SRC = $(BUILD_ROOT) \
             $(BUILD_ROOT)/package.json \
             $(BUILD_ROOT)/npm-shrinkwrap.json \
             $(BUILD_ROOT)/Gemfile \
             $(BUILD_ROOT)/Gemfile.lock \
-            $(BUILD_ROOT)/runner.dockerfile \
             $(BUILD_ROOT)/sudoers \
             $(BUILD_ROOT)/entrypoint.sh
 
 build: $(PREREQUISITES) $(BUILD_SRC)
-	$(DOCKER) build -f $(BUILD_ROOT)/runner.dockerfile -t $(APP_DOCKER_LABEL) \
+	beluga -a $(RAILS_ROOT) -i devbase image dockerfile > $(DOCKERFILE)
+	$(DOCKER) build -f $(DOCKERFILE) -t $(APP_DOCKER_LABEL) \
 	  --build-arg from="ruby:$(RUBY_VERSION)" \
 	  --build-arg id_rsa="$$(cat $(ID_RSA))" \
 	  --build-arg extra_packages="$(EXTRA_PACKAGES)" \
@@ -27,9 +28,6 @@ pull:
 
 clean:
 	rm -rf $(BUILD_ROOT)/*
-
-$(BUILD_ROOT)/runner.dockerfile: $(SRCROOT)/runner.dockerfile
-	cp $< $@
 
 $(BUILD_ROOT)/Gemfile: $(RAILS_ROOT)/Gemfile
 	cat $< | sed -E -e "s/^.*gem.*(path:|:path) .*$$//" > $@

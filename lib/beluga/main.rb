@@ -39,6 +39,8 @@ module Beluga
             end
           when "info"
             puts get_image.options.to_json
+          when "dockerfile"
+            puts get_image.dockerfile
           when "build", "push", "pull", "clean"
             get_image.send(subcommand)
           when "label"
@@ -51,7 +53,7 @@ module Beluga
         puts app.digest
       else
         cmd = app.commands[command]
-        image = @options.image || app.images[cmd.image]
+        image = app.images[@options.image || cmd.image]
         image.run(cmd, @argv)
       end
     end
@@ -59,7 +61,7 @@ module Beluga
     # - Internal -----------------------------------------------------------------
     def parse_options(argv)
       argv << '-h' if argv.empty?
-      options = OpenStruct.new(image: nil, app: '.')
+      options = OpenStruct.new(image: nil, app: File.expand_path("."))
       OptionParser.new do |opts|
         opts.banner = <<~eos
           Usage: beluga [options] <commands>
@@ -98,7 +100,7 @@ module Beluga
           options.app = v
         end
         opts.on("-iIMAGE", "--image=IMAGE", "Name of image. Defaults to devbase.") do |v|
-          options.image = app.images[v]
+          options.image = v
         end
         opts.on_tail("-h", "--help", "Show this message") do
           puts opts
@@ -109,7 +111,7 @@ module Beluga
     end
 
     def get_image
-      return options.image if options.image
+      return app.images[options.image] if options.image
       app.images["devbase"]
     end
   end

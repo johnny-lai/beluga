@@ -3,6 +3,13 @@ require 'socket'
 
 module Beluga
   class Configuration
+    def self.load_yml(yml_file)
+      if File.exists?(yml_file)
+        yml = Configuration.new(File.read(yml_file)).result
+        YAML.load(yml)
+      end
+    end
+
     def initialize(template)
       @template = template
     end

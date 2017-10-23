@@ -1,17 +1,19 @@
+require 'erb'
 require 'rake'
 
 module Beluga
   module Images
-    class Base
+    class MakeBased
       include FileUtils
       
-      attr_accessor :app, :extra_packages
+      attr_accessor :app
       
       def initialize(app, options = {})
         @app = app
-        @tag = options["tag"]
-        @id_rsa = options["id_rsa"] || "~/.ssh/id_rsa"
-        @extra_packages = options["extra_packages"] || []
+        @make_root = options[:make_root]
+        @options = options[:options] || {}
+        @options["id_rsa"] ||= "~/.ssh/id_rsa"
+        @options["extra_packages"] ||= []
       end
       
       def exe
@@ -19,15 +21,11 @@ module Beluga
       end
 
       def image
-        @tag % app.digest
+        @options["tag"] % app.digest
       end
 
       def options
-        {
-          tag: @tag,
-          id_rsa: @id_rsa,
-          extra_packages: @extra_packages
-        }
+        @options
       end
 
       def src_root_d
@@ -66,6 +64,18 @@ module Beluga
         sh "#{exe} run --rm #{default_opts} #{opts} #{extra_opts} #{image} #{c.cmdline(args)}"
       end
       
+      def dockerfile
+        from = if @options["from"]
+          app.images[@options["from"]].image
+        else
+          nil
+        end
+        extra_build_instructions = @options["extra_build_instructions"]
+
+        erb = ERB.new(File.read("#{make_root}/dockerfile.erb"))
+        erb.result(binding)
+      end
+
       #- Commands -----------------------------------------------------------------------
       def build
         make("build")
@@ -83,23 +93,26 @@ module Beluga
         make("pull")
       end
       
-      protected
-      
-      def build_root
-        raise NotImplementedError, "build_root should be defined"
+      def make_root
+        @make_root
       end
       
       def environment
-        "RAILS_ROOT=#{app.root} " +
-        "APP_DOCKER_LABEL=#{image} " +
-        "DIGEST=#{app.digest} " +
-        "ID_RSA=#{@id_rsa} " +
-        "EXTRA_PACKAGES=\"#{extra_packages.join(' ')}\""
+        { RAILS_ROOT: app.root,
+          BUILD_ROOT: app.build_root,
+          APP_DOCKER_LABEL: image,
+          DIGEST: app.digest,
+          ID_RSA: @options["id_rsa"],
+          EXTRA_PACKAGES: @options["extra_packages"].join(' '),
+        }
       end
       
       def make(command)
-        FileUtils.cd build_root do
-          sh "#{environment} make #{command}"
+        FileUtils.cd make_root do
+          env_opts = environment.map do |k,v|
+            "#{k}='#{v}'"
+          end.join(" ")
+          sh "#{env_opts} make #{command}"
         end
       end
     end

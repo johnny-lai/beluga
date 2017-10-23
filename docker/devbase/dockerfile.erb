@@ -27,3 +27,5 @@ ENTRYPOINT ["/entrypoints/devbase.sh"]
 
 ARG extra_packages
 RUN apt-get install -y $extra_packages
+
+<%= extra_build_instructions %>
