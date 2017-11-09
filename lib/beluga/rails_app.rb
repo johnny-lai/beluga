@@ -42,15 +42,23 @@ module Beluga
     end
     
     def images
-      @images ||= {
-        "devbase" => Images::Devbase.new(self, config["images"]["devbase"]),
-        "testbase" => Images::Testbase.new(self, config["images"]["testbase"]),
-      }
+      @images ||= Hash.new do |h, k|
+        img = case k
+        when "devbase"
+          Images::Devbase.new(self, config["images"]["devbase"])
+        when "testbase"
+          Images::Testbase.new(self, config["images"]["testbase"])
+        end
+        raise "Unknown image: #{k}" unless img
+        h[k] = img
+      end
     end
     
     def commands
       @commands ||= Hash.new do |h, k|
-        h[k] = Commands::Shell.new(self, config["commands"][k])
+        opts = config["commands"][k]
+        raise "Unknown command: #{k}" unless opts
+        h[k] = Commands::Shell.new(self, opts)
       end
     end
   end

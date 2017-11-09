@@ -1,42 +1,47 @@
 #!/usr/bin/env ruby
+require 'ostruct'
 require 'beluga'
 
-app = Beluga::RailsApp.new(".")
+begin
+  app = Beluga::RailsApp.new(".")
 
-command = ARGV.shift
-case command
-when "image"
-  subcommand = ARGV.shift
-  image = ARGV.shift || "devbase"
+  ARGV << '-h' if ARGV.empty?
+  options = OpenStruct.new(image: nil)
+  OptionParser.new do |opts|
+    opts.banner = "Usage: beluga [options] <command>\n" +
+                  "       beluga [options] image <image-commands>"
 
-  img = app.images[image]
-  unless img
-    puts STDERR, "Unknown image: #{image}"
-    exit 1
-  end
+    opts.on("-iIMAGE", "--image=IMAGE", "Name of image. Defaults to devbase.") do |v|
+      options.image = app.images[v]
+    end
+    opts.on_tail("-h", "--help", "Show this message") do
+      puts opts
+      exit
+    end
+  end.parse!
 
-  case subcommand
-  when "build", "push", "pull", "clean"
-    img.send(subcommand)
-  when "tag"
-    puts img.image
+  command = ARGV.shift
+  case command
+  when "image"
+    image = options.image || app.images["devbase"]
+    while subcommand = ARGV.shift do
+      case subcommand
+      when "build", "push", "pull", "clean"
+        image.send(subcommand)
+      when "tag"
+        puts image.image
+      else
+        STDERR.puts "Unknown command: images #{subcommand}"
+      end
+    end
+  when "digest"
+    puts app.digest
   else
-    STDERR.puts "Unknown command: images #{subcommand}"
+    cmd = app.commands[command]
+    image = options.image || app.images[cmd.image]
+    image.run(cmd, ARGV, "-it")
   end
-when "digest"
-  puts app.digest
-else
-  cmd = app.commands[command]
-  unless cmd
-    STDERR.puts "Unknown command: #{command}"
-    exit 1
-  end
-
-  img = app.images[cmd.image]
-  unless img
-    STDERR.puts "Unknown image: #{cmd.image}"
-    exit 1
-  end
-
-  img.run(cmd, ARGV, "-it")
+rescue => e
+  STDERR.puts e.message
+  exit 1
 end

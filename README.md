@@ -23,11 +23,18 @@ Add new commands and configure images using config/beluga.yml
 
 ## Examples
 
+All examples should be run from your rails application root folder.
+
 ### Build the devbase image
 
-Run the following from your rails application root folder.
 ```
-$ beluga images build
+$ beluga image build
+```
+
+### Build and deploy the devbase image
+
+```
+$ beluga image build push
 ```
 
 ### Run your command in devbase
