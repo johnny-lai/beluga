@@ -7,7 +7,7 @@ require "beluga/version"
 Gem::Specification.new do |s|
   s.name        = "beluga"
   s.version     = Beluga::VERSION
-  s.authors     = ["Johnny Lai"]
+  s.authors     = ["Bing-Chang Lai"]
   s.email       = ["johnny.lai@me.com"]
   s.summary     = "Creating docker images with pre-requisites for your rails app"
   s.license     = "MIT"
