@@ -3,7 +3,8 @@ include ../make/env.mk
 ID_RSA ?= ~/.ssh/id_rsa
 RUBY_VERSION = $(shell cat $(RAILS_ROOT)/.ruby-version)
 
-BUILD_SRC = $(BUILD_ROOT)/package.json \
+BUILD_SRC = $(BUILD_ROOT) \
+            $(BUILD_ROOT)/package.json \
             $(BUILD_ROOT)/npm-shrinkwrap.json \
             $(BUILD_ROOT)/Gemfile \
             $(BUILD_ROOT)/Gemfile.lock \

@@ -72,8 +72,8 @@ module Beluga
       def environment
         "RAILS_ROOT=#{app.root} " +
         "APP_DOCKER_LABEL=#{image} " +
-        "DIGEST=#{app.digest} "
-        "ID_RSA=#{@id_rsa} " +
+        "DIGEST=#{app.digest} " +
+        "ID_RSA=#{@id_rsa} "
       end
       
       def make(command)

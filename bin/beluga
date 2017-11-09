@@ -5,7 +5,7 @@ app = Beluga::RailsApp.new(".")
 
 command = ARGV.shift
 case command
-when "images"
+when "image"
   subcommand = ARGV.shift
   image = ARGV.shift || "devbase"
 
