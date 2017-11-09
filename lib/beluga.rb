@@ -1,4 +1,3 @@
-require 'byebug'
 require 'beluga/commands'
 require 'beluga/images'
 require 'beluga/rails_app'
