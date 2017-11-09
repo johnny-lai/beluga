@@ -10,6 +10,7 @@ module Beluga
       def initialize(app, options = {})
         @app = app
         @tag = options["tag"]
+        @id_rsa = options["id_rsa"] || "~/.ssh/id_rsa"
       end
       
       def exe
@@ -69,7 +70,10 @@ module Beluga
       end
       
       def environment
-        "RAILS_ROOT=#{app.root} APP_DOCKER_LABEL=#{image} DIGEST=#{app.digest} "
+        "RAILS_ROOT=#{app.root} " +
+        "APP_DOCKER_LABEL=#{image} " +
+        "DIGEST=#{app.digest} "
+        "ID_RSA=#{@id_rsa} " +
       end
       
       def make(command)

@@ -1,31 +1,21 @@
 include ../make/env.mk
 
-RUBY_VERSION=$(shell cat $(RAILS_ROOT)/.ruby-version)
+ID_RSA ?= ~/.ssh/id_rsa
+RUBY_VERSION = $(shell cat $(RAILS_ROOT)/.ruby-version)
 
-DIGEST?=$(shell make digest | tail -1)
-PREREQUISITES_DIGEST_CACHE=$(BUILD_ROOT)/digest
-BUNDLE_CACHE=$(BUILD_ROOT)/bundle-$(DIGEST)
-
-# Files used to calculate the digest
-PREREQUISITES_DIGEST_SRC=$(BUILD_ROOT)/.ruby-version \
-                         $(BUILD_ROOT)/package.json \
-                         $(BUILD_ROOT)/npm-shrinkwrap.json \
-                         $(BUILD_ROOT)/Gemfile \
-                         $(BUILD_ROOT)/Gemfile.lock.normalized
-
-BUILD_SRC=$(BUILD_ROOT)/runner.dockerfile\
-          $(BUILD_ROOT)/sudoers \
-          $(BUILD_ROOT)/entrypoint.sh
-
-digest: $(PREREQUISITES_DIGEST_CACHE)
-	@cat $(PREREQUISITES_DIGEST_CACHE)
+BUILD_SRC = $(BUILD_ROOT)/package.json \
+            $(BUILD_ROOT)/npm-shrinkwrap.json \
+            $(BUILD_ROOT)/Gemfile \
+            $(BUILD_ROOT)/Gemfile.lock \
+            $(BUILD_ROOT)/runner.dockerfile \
+            $(BUILD_ROOT)/sudoers \
+            $(BUILD_ROOT)/entrypoint.sh
 
 build: $(PREREQUISITES) $(BUILD_SRC)
-	if [ ! -f $(BUNDLE_CACHE) ]; then \
-		cd $(BUILD_ROOT) && rm -rf vendor/cache && rvm $(RUBY_VERSION) exec bundle package --all; \
-		touch $(BUNDLE_CACHE); \
-	fi; \
-	$(DOCKER) build -f $(BUILD_ROOT)/runner.dockerfile -t $(APP_DOCKER_LABEL) $(BUILD_ROOT); \
+	$(DOCKER) build -f $(BUILD_ROOT)/runner.dockerfile -t $(APP_DOCKER_LABEL) \
+	  --build-arg from="ruby:$(RUBY_VERSION)" \
+	  --build-arg id_rsa="$$(cat $(ID_RSA))" \
+	  $(BUILD_ROOT);
 
 push:
 	$(DOCKER) push $(APP_DOCKER_LABEL)
@@ -33,21 +23,11 @@ push:
 pull:
 	$(DOCKER) pull $(APP_DOCKER_LABEL)
 
-clean: prerequisites.clean
+clean:
 	rm -rf $(BUILD_ROOT)/*
 
-prerequisites.build: $(DIGEST_PREREQS) $(BUILD_ROOT)/Gemfile.lock
-
-prerequisites.clean:
-	rm -f $(PREREQUISITES_DIGEST_SRC)
-
-prerequisites.digest: $(PREREQUISITES_DIGEST_CACHE)
-
-$(PREREQUISITES_DIGEST_CACHE): $(PREREQUISITES_DIGEST_SRC)
-	@cat $(PREREQUISITES_DIGEST_SRC) | $(SHA1SUM) | awk '{print $$1}' > $@
-
 $(BUILD_ROOT)/runner.dockerfile: $(SRCROOT)/runner.dockerfile
-	cat $< | sed -E -e "s/^FROM ruby:.*$$/FROM ruby:$(RUBY_VERSION)/" > $@
+	cp $< $@
 
 $(BUILD_ROOT)/Gemfile: $(RAILS_ROOT)/Gemfile
 	cat $< | sed -E -e "s/^.*gem.*(path:|:path) .*$$//" > $@

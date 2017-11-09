@@ -7,7 +7,7 @@ command = ARGV.shift
 case command
 when "images"
   subcommand = ARGV.shift
-  image = ARGV.shift || "runner"
+  image = ARGV.shift || "devbase"
 
   img = app.images[image]
   unless img

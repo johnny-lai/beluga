@@ -5,7 +5,7 @@ module Beluga
     class Shell < Base
       def initialize(app, options = {})
         @exe = options["exe"]
-        @environ = options["environ"]
+        @environ = options["environ"] || {}
         super
       end
       

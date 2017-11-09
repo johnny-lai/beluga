@@ -1,3 +1,4 @@
+require 'digest'
 require 'ostruct'
 require 'yaml'
 
@@ -31,14 +32,13 @@ module Beluga
     
     def digest
       return @digest if @digest
-      
-      # The runner digest is a fingerprint that changes when Gemfile,
-      # package.json etc changes
-      FileUtils.cd "#{Beluga.root}/docker/devbase" do
-        @digest =`RAILS_ROOT=#{root} make digest`.chomp.split("\n").last
+
+      sha1 = ::Digest::SHA1.new
+      %w[.ruby-version package.json npm-shrinkwrap.json Gemfile Gemfile.lock].each do |f|
+      	sha1 << File.read(File.join(root, f))
       end
-      
-      @digest
+
+      @digest = sha1.hexdigest
     end
     
     def images

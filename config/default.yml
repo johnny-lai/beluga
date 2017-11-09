@@ -1,9 +1,14 @@
 images:
   devbase:
     tag: beluga-devbase:%s
+    id_rsa: ~/.ssh/id_rsa
   testbase:
     tag: beluga-testbase:%s
+    id_rsa: ~/.ssh/id_rsa
 commands:
   rspec:
     exe: bundle exec rspec %s
+    image: devbase
+  exec:
+    exe: "%s"
     image: devbase
