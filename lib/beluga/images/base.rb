@@ -39,11 +39,13 @@ module Beluga
       end
 
       def run(c, args, extra_opts = "")
+        tty_opts = "-it" if $stdout.isatty
+        
         env_opts = c.environ.map do |k, v|
           "-e #{k}=#{v}"
         end.join(" ")
         
-        sh "#{exe} run --rm #{opts} #{env_opts} #{extra_opts} #{image} #{c.cmdline(args)}"
+        sh "#{exe} run --rm #{opts} #{env_opts} #{extra_opts} #{tty_opts} #{image} #{c.cmdline(args)}"
       end
       
       #- Commands -----------------------------------------------------------------------

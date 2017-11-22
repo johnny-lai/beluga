@@ -39,7 +39,7 @@ begin
   else
     cmd = app.commands[command]
     image = options.image || app.images[cmd.image]
-    image.run(cmd, ARGV, "-it")
+    image.run(cmd, ARGV)
   end
 rescue => e
   STDERR.puts e.message
