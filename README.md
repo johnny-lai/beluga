@@ -2,7 +2,11 @@
 
 [![Build Status](https://travis-ci.org/johnny-lai/beluga.svg?branch=master)](https://travis-ci.org/johnny-lai/beluga)
 
-This project rocks and uses MIT-LICENSE.
+Beluga is a tool for generating base docker images capable of running your Rails application. Since all Ruby applications require Ruby, and the gems in their Gemfile.lock, essentially the way the base image share similarities.
+
+It currently assumes a Rails application, with a package.json file.
+
+It uses the MIT-LICENSE.
 
 ## Installation
 
