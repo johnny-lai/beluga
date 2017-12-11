@@ -4,8 +4,9 @@ module Beluga
   module Commands
     class Shell < Base
       def initialize(app, options = {})
-        @exe = options["exe"]
-        @environ = options["environ"] || {}
+        @exe = options["command"]
+        @environ = options["environment"] || {}
+        @extra_hosts = options["extra_hosts"] || []
         super
       end
       
@@ -15,6 +16,10 @@ module Beluga
       
       def environ
         @environ
+      end
+      
+      def extra_hosts
+        @extra_hosts
       end
     end
   end

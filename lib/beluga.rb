@@ -1,4 +1,5 @@
 require 'beluga/commands'
+require 'beluga/configuration'
 require 'beluga/images'
 require 'beluga/rails_app'
 

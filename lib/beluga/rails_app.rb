@@ -14,9 +14,10 @@ module Beluga
       return @config if @config
       
       @config = {}
-      ["#{Beluga.root}/config/default.yml", "#{root}/config/beluga.yml"].each do |yml|
-        if File.exists?(yml)
-          @config.merge!(YAML.load(File.open(yml, "r")))
+      ["#{Beluga.root}/config/default.yml", "#{root}/config/beluga.yml"].each do |yml_file|
+        if File.exists?(yml_file)
+          yml = Configuration.new(File.read(yml_file)).result
+          @config.merge!(YAML.load(yml))
         end
       end
       
@@ -26,7 +27,7 @@ module Beluga
     def db_socket
       return @db_socket unless @db_socket.nil?
 
-      dbhash = YAML.load(File.open("#{root}/config/database.yml",'r'))
+      dbhash = YAML.load(ERB.new(File.read("#{root}/config/database.yml")).result)
       @db_socket = dbhash["development"]["socket"]
     end
     

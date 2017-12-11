@@ -7,8 +7,12 @@ images:
     id_rsa: ~/.ssh/id_rsa
 commands:
   rspec:
-    exe: bundle exec rspec %s
+    command: bundle exec rspec %s
     image: devbase
+    extra_hosts:
+      - "db:<%= host_public_ip %>"
   exec:
-    exe: "%s"
+    command: "%s"
     image: devbase
+    extra_hosts:
+      - "db:<%= host_public_ip %>"

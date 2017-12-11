@@ -25,27 +25,36 @@ module Beluga
         "/app"
       end
 
-      def opts
-        @opts ||= <<~eos.tr!("\n", " ")
+      def default_opts
+        return @default_opts if @default_opts
+        
+        opts = <<~eos.tr!("\n", " ")
           #{ENV["DOCKER_EXTRA_OPTS"]}
           -v #{app.root}:#{src_root_d}
-          -v #{app.db_socket}:#{app.db_socket}
           -w #{src_root_d}
           -e IN_DOCKER=true
           -e DEV_UID=#{Process.uid}
           -e DEV_GID=#{Process.gid}
           --net=bridge
         eos
+        opts << " -it" if $stdout.isatty
+        opts << " -v #{app.db_socket}:#{app.db_socket}" if app.db_socket
+        puts opts
+        @default_opts = opts
       end
 
       def run(c, args, extra_opts = "")
-        tty_opts = "-it" if $stdout.isatty
+        opts = ""
         
-        env_opts = c.environ.map do |k, v|
-          "-e #{k}=#{v}"
-        end.join(" ")
+        c.environ.each do |k, v|
+          opts << " -e #{k}=#{v}"
+        end
         
-        sh "#{exe} run --rm #{opts} #{env_opts} #{extra_opts} #{tty_opts} #{image} #{c.cmdline(args)}"
+        c.extra_hosts.each do |v|
+          opts << " --add-host=#{v}"
+        end
+        
+        sh "#{exe} run --rm #{default_opts} #{opts} #{extra_opts} #{image} #{c.cmdline(args)}"
       end
       
       #- Commands -----------------------------------------------------------------------
