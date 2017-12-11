@@ -1,46 +1,8 @@
 #!/usr/bin/env ruby
-require 'ostruct'
 require 'beluga'
 
 begin
-  app = Beluga::RailsApp.new(".")
-
-  ARGV << '-h' if ARGV.empty?
-  options = OpenStruct.new(image: nil)
-  OptionParser.new do |opts|
-    opts.banner = "Usage: beluga [options] <command>\n" +
-                  "       beluga [options] image <image-commands>"
-
-    opts.on("-iIMAGE", "--image=IMAGE", "Name of image. Defaults to devbase.") do |v|
-      options.image = app.images[v]
-    end
-    opts.on_tail("-h", "--help", "Show this message") do
-      puts opts
-      exit
-    end
-  end.parse!
-
-  command = ARGV.shift
-  case command
-  when "image"
-    image = options.image || app.images["devbase"]
-    while subcommand = ARGV.shift do
-      case subcommand
-      when "build", "push", "pull", "clean"
-        image.send(subcommand)
-      when "tag"
-        puts image.image
-      else
-        STDERR.puts "Unknown command: images #{subcommand}"
-      end
-    end
-  when "digest"
-    puts app.digest
-  else
-    cmd = app.commands[command]
-    image = options.image || app.images[cmd.image]
-    image.run(cmd, ARGV)
-  end
+  Beluga::Main.new(ARGV).run
 rescue => e
   STDERR.puts e.message
   exit 1

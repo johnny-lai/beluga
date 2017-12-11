@@ -1,6 +1,7 @@
 require 'beluga/commands'
 require 'beluga/configuration'
 require 'beluga/images'
+require 'beluga/main'
 require 'beluga/rails_app'
 
 module Beluga

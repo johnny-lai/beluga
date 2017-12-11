@@ -20,7 +20,14 @@ module Beluga
       def image
         @tag % app.digest
       end
-      
+
+      def options
+        {
+          tag: @tag,
+          id_rsa: @id_rsa
+        }
+      end
+
       def src_root_d
         "/app"
       end

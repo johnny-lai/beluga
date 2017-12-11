@@ -21,6 +21,14 @@ module Beluga
       def extra_hosts
         @extra_hosts
       end
+      
+      def options
+        {
+          command: @exe,
+          environment: @environ,
+          extra_hosts: @extra_hosts
+        }
+      end
     end
   end
 end
