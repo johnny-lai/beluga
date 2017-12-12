@@ -1,5 +1,5 @@
 require 'ostruct'
-require 'byebug'
+require 'json'
 
 module Beluga
   class Main
@@ -22,10 +22,10 @@ module Beluga
           case subcommand
           when "list"
             app.commands.each do |k, v|
-              puts({ k => v.options }.to_yaml)
+              puts({ k => v.options }.to_json)
             end
           when "info"
-            puts app.commands[@argv.shift].options.to_yaml
+            puts app.commands[@argv.shift].options.to_json
           else
             raise "Unknown command: command #{subcommand}"
           end
@@ -35,10 +35,10 @@ module Beluga
           case subcommand
           when "list"
             app.images.each do |k, v|
-              puts({ k => v.options }.to_yaml)
+              puts({ k => v.options }.to_json)
             end
           when "info"
-            puts get_image.options.to_yaml
+            puts get_image.options.to_json
           when "build", "push", "pull", "clean"
             get_image.send(subcommand)
           when "label"
