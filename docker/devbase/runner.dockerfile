@@ -23,3 +23,6 @@ COPY entrypoint.sh /entrypoints/devbase.sh
 
 ENV BUNDLE_CACHE_PATH ../usr/local/bundle/cache
 ENTRYPOINT ["/entrypoints/devbase.sh"]
+
+ARG extra_packages
+RUN apt-get install -y $extra_packages

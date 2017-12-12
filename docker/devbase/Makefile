@@ -16,6 +16,7 @@ build: $(PREREQUISITES) $(BUILD_SRC)
 	$(DOCKER) build -f $(BUILD_ROOT)/runner.dockerfile -t $(APP_DOCKER_LABEL) \
 	  --build-arg from="ruby:$(RUBY_VERSION)" \
 	  --build-arg id_rsa="$$(cat $(ID_RSA))" \
+	  --build-arg extra_packages="$(EXTRA_PACKAGES)" \
 	  $(BUILD_ROOT);
 
 push:

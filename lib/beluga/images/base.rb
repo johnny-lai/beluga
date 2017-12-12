@@ -5,12 +5,13 @@ module Beluga
     class Base
       include FileUtils
       
-      attr_accessor :app
+      attr_accessor :app, :extra_packages
       
       def initialize(app, options = {})
         @app = app
         @tag = options["tag"]
         @id_rsa = options["id_rsa"] || "~/.ssh/id_rsa"
+        @extra_packages = options["extra_packages"]
       end
       
       def exe
@@ -24,7 +25,8 @@ module Beluga
       def options
         {
           tag: @tag,
-          id_rsa: @id_rsa
+          id_rsa: @id_rsa,
+          extra_packages: @extra_packages
         }
       end
 
@@ -91,7 +93,8 @@ module Beluga
         "RAILS_ROOT=#{app.root} " +
         "APP_DOCKER_LABEL=#{image} " +
         "DIGEST=#{app.digest} " +
-        "ID_RSA=#{@id_rsa} "
+        "ID_RSA=#{@id_rsa} " +
+        "EXTRA_PACKAGES=\"#{extra_packages.join(' ')}\""
       end
       
       def make(command)
