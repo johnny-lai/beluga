@@ -22,6 +22,7 @@ COPY sudoers /etc/sudoers
 COPY entrypoint.sh /entrypoints/devbase.sh
 
 ENV BUNDLE_CACHE_PATH ../usr/local/bundle/cache
+ENV BUNDLE_GEMFILE Gemfile
 ENTRYPOINT ["/entrypoints/devbase.sh"]
 
 ARG extra_packages
