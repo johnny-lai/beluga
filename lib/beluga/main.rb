@@ -110,7 +110,6 @@ module Beluga
 
     def get_image
       return options.image if options.image
-      return app.images[@argv.shift] if !@argv.empty?
       app.images["devbase"]
     end
   end
