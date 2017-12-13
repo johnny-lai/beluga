@@ -11,7 +11,7 @@ module Beluga
         @app = app
         @tag = options["tag"]
         @id_rsa = options["id_rsa"] || "~/.ssh/id_rsa"
-        @extra_packages = options["extra_packages"]
+        @extra_packages = options["extra_packages"] || []
       end
       
       def exe
