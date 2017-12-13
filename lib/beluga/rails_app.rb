@@ -35,6 +35,7 @@ module Beluga
       return @digest if @digest
 
       sha1 = ::Digest::SHA1.new
+      sha1 << version.to_s unless version.nil?
       %w[.ruby-version package.json npm-shrinkwrap.json Gemfile Gemfile.lock].each do |f|
       	sha1 << File.read(File.join(root, f))
       end
@@ -42,6 +43,10 @@ module Beluga
       @digest = sha1.hexdigest
     end
     
+    def version
+      @version ||= config["version"]
+    end
+
     def images
       imgs = Hash.new do |h, k|
         raise "Unknown image: #{k}"
