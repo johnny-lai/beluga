@@ -44,7 +44,10 @@ module Beluga
     end
     
     def version
-      @version ||= config["version"]
+      return @version if @version
+
+      c = config["app"]
+      @version = c && c["version"]
     end
 
     def images
