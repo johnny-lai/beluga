@@ -46,6 +46,8 @@ By default, beluga uses UNIX sockets to connect the database on your host with t
 
 For the Mac, instead, you can connect via the `db` host and port 3306.
 
+* Configure your MySQL server to serve on the public IP
+
 * Add `db` to `/etc/hosts`. Within the container, `db` will refer to the host. Outside it will refer to localhost
 ```
 127.0.01        db
