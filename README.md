@@ -40,9 +40,34 @@ The configuration file is ERB aware, and has the following extra functions:
 
 * `host_public_ip`: Returns the first public IP of the host
 
-## Limitations
+## Setting up database access on the Mac
 
-* Only support database connections using sockets. This does not work on MacOS.
+By default, beluga uses UNIX sockets to connect the database on your host with the code running in docker. Unfortunately, docker does not support UNIX sockets on the Mac.
+
+For the Mac, instead, you can connect via the `db` host and port 3306.
+
+* Add `db` to `/etc/hosts`. Within the container, `db` will refer to the host. Outside it will refer to localhost
+```
+127.0.01        db
+```
+
+* Create a user and password on MySQL
+```
+$ mysql -u root -p
+> CREATE USER 'user'@'%' IDENTIFIED BY 'apasswordforamysqluser';
+> GRANT ALL PRIVILEGES ON *.* TO 'user'@'%';
+```
+
+* In your `config/database.yml`, you would then use:
+```
+development:
+  # ...
+  host: db
+  username: user
+  password: apasswordforamysqluser
+```
+
+After this, the same config/database.yml should be usable both within docker, and on the host. This works because the default configuration adds a `db` host that points to the host's first *public* address. See https://github.com/johnny-lai/beluga/blob/master/config/default.yml#L14.
 
 ## Examples
 
