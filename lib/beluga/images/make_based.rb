@@ -46,7 +46,6 @@ module Beluga
         eos
         opts << " -it" if $stdout.isatty
         opts << " -v #{app.db_socket}:#{app.db_socket}" if app.db_socket
-        puts opts
         @default_opts = opts
       end
 
