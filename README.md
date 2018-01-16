@@ -50,7 +50,7 @@ For the Mac, instead, you can connect via the `db` host and port 3306.
 
 * Add `db` to `/etc/hosts`. Within the container, `db` will refer to the host. Outside it will refer to localhost
 ```
-127.0.01        db
+127.0.0.1        db
 ```
 
 * Create a user and password on MySQL
