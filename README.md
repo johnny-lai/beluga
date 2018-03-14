@@ -23,6 +23,8 @@ Add new commands and configure images using config/beluga.yml. If you provide co
 for existing commands/images, the settings will be merged with beluga's config/default.yml.
 
 ```
+app:
+  version: -- A value that you can use to force modify the digest
 images:
   <image-name>:
     tag: -- Docker Label. %s is the digest
