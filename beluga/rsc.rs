@@ -12,13 +12,13 @@ ENTRYPOINT ['/entrypoints/devbase.sh']
 {{build_instructions}}
 ";
 
-pub const npm_install: &'static str = "
+pub const NPM_INSTALL: &'static str = "
 WORKDIR /build/
 COPY package.json npm-shrinkwrap.json ./
 RUN NODE_ENV=production npm install
 ";
 
-pub const gem_install: &'static str = "
+pub const GEM_INSTALL: &'static str = "
 WORKDIR /build/
 COPY Gemfile Gemfile.lock ./
 RUN mkdir /root/.ssh && \\
@@ -33,7 +33,7 @@ ENV BUNDLE_GEMFILE Gemfile
 ";
 
 //- entrypoint_sh --------------------------------------------------------------
-pub const entrypoint_sh: &'static str = "
+pub const ENTRYPOINT_SH: &'static str = "
 #!/bin/bash
 
 # Create links

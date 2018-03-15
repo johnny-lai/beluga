@@ -1,12 +1,20 @@
+extern crate base64;
 extern crate getopts;
+extern crate handlebars;
+extern crate libc;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 extern crate yaml_rust;
 
+mod beluga;
+
+use beluga::RailsApp;
 use getopts::Options;
 use getopts::Matches;
 use std::env;
 use std::process::exit;
-
-include!(concat!(env!("CARGO_MANIFEST_DIR"), "/rails_app.rs"));
 
 fn do_work(inp: &str, out: Option<String>) {
     println!("{}", inp);
@@ -24,7 +32,7 @@ impl CommandFactory {
     }
 }
 
-fn usage(program: &str, opts: Options) -> String{
+fn usage(program: &str, opts: &Options) -> String{
     let brief = format!("Usage: {} [options] COMMAND", program);
     return opts.usage(&brief) + "
 Commands:
@@ -43,13 +51,10 @@ Commands:
 ";
 }
 
-fn parse_arguments(args: Vec<String>) -> Result<Matches, String> {
+fn parse_arguments(opts: &Options, args: Vec<String>) -> Result<Matches, String> {
     let program = args[0].clone();
 
-    let mut opts = Options::new();
-    opts.optopt("a", "", "Location of Application. Defaults to '.'", "APP");
-    opts.optopt("i", "", "Name of image. Defaults to devbase", "IMAGE");
-    opts.optflag("h", "help", "print this help menu");
+
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
         Err(f) => { return Err(f.to_string()) }
@@ -64,18 +69,70 @@ fn parse_arguments(args: Vec<String>) -> Result<Matches, String> {
 }
 
 fn main() {
+    let mut opts = Options::new();
+    opts.optopt("a", "", "Location of Application. Defaults to '.'", "APP");
+    opts.optopt("i", "", "Name of image. Defaults to devbase", "IMAGE");
+    opts.optflag("h", "help", "print this help menu");
+
     let args: Vec<String> = env::args().collect();
-    match parse_arguments(args) {
+    match parse_arguments(&opts, args) {
         Ok(m) => {
             // Arguments are valid
             let app_root = m.opt_str("a").unwrap_or(String::from("."));
             let image_name = m.opt_str("i").unwrap_or(String::from("devbase"));
 
-            let a = RailsApp::from(app_root).unwrap();
-            let i = a.image();
+            // TODO: Handle bad app_root
+            let app = RailsApp::from(app_root).unwrap();
+
+            // TODO: Handle bad image
+            let image = app.image(&image_name);
+
+            let mut i = 0;
+            let args = m.free;
+            if i >= args.len() {
+                panic!("argument missing");
+            }
+            match args[i].as_ref() {
+                "digest" => {
+                    println!("{}", app.digest())
+                },
+                "command" => {
+                },
+                "image" => {
+                    i += 1;
+                    if i >= args.len() {
+                        panic!("argument missing");
+                    }
+                    match args[i].as_ref() {
+                        "list" => {
+                        },
+                        "info" => {
+                        },
+                        "label" => {
+                        },
+                        "build" => {
+                            println!("building");
+                            image.build();
+                        },
+                        "push" => {
+                        },
+                        "pull" => {
+                        },
+                        "clean" => {
+                        },
+                        _ => {
+                        },
+                    }
+                },
+                _ => {
+                },
+            }
+
+
+/*
             println!("{}", i.dockerfile());
             i.build();
-/*
+
             let i = a.image("devbase")
             i.build()
             i.label()

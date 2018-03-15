@@ -1,22 +1,15 @@
-//use yaml_rust::{YamlLoader, YamlEmitter};
+mod rsc;
 
-extern crate base64;
-extern crate handlebars;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-use std::collections::HashMap;
+use base64;
+use handlebars::{Handlebars, Helper, RenderContext, RenderError};
+use libc::sprintf;
 use std::fs;
+use std::fmt;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-
-use handlebars::{Handlebars, Helper, RenderContext, RenderError};
-
-mod rsc;
+use std::process::{Command, Stdio, ExitStatus};
+//use yaml_rust::{YamlLoader, YamlEmitter};
 
 //= Image ======================================================================
 #[derive(Serialize, Deserialize)]
@@ -34,22 +27,24 @@ fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), 
 
     rc.writer.write(b"echo ");
     if from == Some("entrypoint.sh") {
-        try!(rc.writer.write(base64::encode(rsc::entrypoint_sh).into_bytes().as_ref()));
+        try!(rc.writer.write(base64::encode(rsc::ENTRYPOINT_SH).into_bytes().as_ref()));
     }
     rc.writer.write(b" | base64 -d > ");
     rc.writer.write(to.unwrap().as_bytes());
     Ok(())
 }
 
-pub struct Image {
+pub struct Image<'a> {
+    label: String,
+    app_root: &'a PathBuf,
     template: String,
 }
 
-impl Image {
+impl<'a> Image<'a> {
     fn build_instructions(&self) -> String {
         let mut str = String::new();
-        str.push_str(rsc::npm_install);
-        str.push_str(rsc::gem_install);
+        str.push_str(rsc::NPM_INSTALL);
+        str.push_str(rsc::GEM_INSTALL);
         // str.push_str(RUN apt-get install -y {{extra_packages}});
         // str.push_str(extra_build_instructions);
         return str;
@@ -62,32 +57,31 @@ impl Image {
         };
     }
 
-    fn dockerfile(&self) -> String {
+    pub fn dockerfile(&self) -> String {
         let mut reg = Handlebars::new();
-        /// register the helper
         reg.register_helper("write_rsc", Box::new(write_rsc));
         return reg.render_template(&self.template, &self.build_options()).unwrap();
     }
 
-    fn build(&self) -> io::Result<std::process::ExitStatus> {
+    pub fn build(&self) -> io::Result<ExitStatus> {
         let mut child = Command::new("docker")
                     .arg("build")
                     .arg("-f")
                     .arg("-")
-                    .arg("/Users/johnny_lai/Projects/beluga")
+                    .arg(self.app_root.to_str().unwrap())
                     .stdin(Stdio::piped())
                     .stdout(Stdio::inherit())
                     .spawn()
                     .expect("failed to execute process");
         {
-            let mut stdin = child.stdin.as_mut().expect("Failed to open stdin");
+            let stdin = child.stdin.as_mut().expect("Failed to open stdin");
             stdin.write_all(self.dockerfile().as_bytes()).expect("Failed to write to stdin");
         }
 
         return child.wait()
     }
 
-    fn run(&self) {
+    pub fn exec(&self) {
     }
 }
 
@@ -105,7 +99,19 @@ impl RailsApp {
         };
     }
 
-    fn image(&self) -> Image{
-        return Image{template: String::from(rsc::DEVBASE)};
+    fn image_label(&self, image_name: &str) -> String {
+        return format!("{}:{}", image_name, self.digest());
+    }
+
+    pub fn digest(&self) -> String {
+        return String::from("digest");
+    }
+
+    pub fn image(&self, image_name: &str) -> Image {
+        return Image{
+            label: self.image_label(image_name),
+            app_root: &self.root,
+            template: String::from(rsc::DEVBASE)
+        };
     }
 }
