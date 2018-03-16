@@ -2,6 +2,10 @@ mod rsc;
 
 use base64;
 use handlebars::{Handlebars, Helper, RenderContext, RenderError};
+use sha1;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -88,6 +92,18 @@ pub struct RailsApp {
     root: PathBuf
 }
 
+fn sha1_update(m: &mut sha1::Sha1, file_name: &str) {
+    let contents = fs::File::open(file_name)
+       .map_err(|err| err.to_string())
+       .and_then(|mut file| {
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)
+                .map_err(|err| err.to_string())
+                .map(|_| contents)
+       });
+    m.update(contents.unwrap().as_bytes());
+}
+
 impl RailsApp {
     pub fn from(r: String) -> Result<RailsApp, io::Error> {
         let srcdir = PathBuf::from(r);
@@ -98,11 +114,21 @@ impl RailsApp {
     }
 
     fn image_label(&self, image_name: &str) -> String {
-        return format!("{}:{}", image_name, self.digest());
+        return format!("{}:{}", image_name, self.digest().unwrap());
     }
 
-    pub fn digest(&self) -> String {
-        return String::from("digest");
+    pub fn digest(&self) -> Result<String, String> {
+        let mut m = sha1::Sha1::new();
+
+        // .ruby-version package.json npm-shrinkwrap.json Gemfile Gemfile.lock
+        sha1_update(&mut m, ".ruby-version");
+        sha1_update(&mut m, "package.json");
+        sha1_update(&mut m, "npm-shrinkwrap.json");
+        sha1_update(&mut m, "Gemfile");
+        sha1_update(&mut m, "Gemfile.lock");
+
+
+        return Ok(m.digest().to_string());
     }
 
     pub fn image(&self, image_name: &str) -> Image {

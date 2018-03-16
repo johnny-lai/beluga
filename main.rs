@@ -5,6 +5,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate sha1;
 extern crate yaml_rust;
 
 mod beluga;
@@ -71,7 +72,7 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
     }
     match args[i].as_ref() {
         "digest" => {
-            println!("{}", app.digest())
+            println!("{}", app.digest().unwrap())
         },
         "command" => {
         },
