@@ -1,7 +1,6 @@
 extern crate base64;
 extern crate getopts;
 extern crate handlebars;
-extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -15,22 +14,6 @@ use getopts::Options;
 use getopts::Matches;
 use std::env;
 use std::process::exit;
-
-fn do_work(inp: &str, out: Option<String>) {
-    println!("{}", inp);
-    match out {
-        Some(x) => println!("{}", x),
-        None => println!("No Output"),
-    }
-}
-
-struct CommandFactory {
-}
-
-impl CommandFactory {
-    fn create(app_root: String) {
-    }
-}
 
 fn usage(program: &str, opts: &Options) -> String{
     let brief = format!("Usage: {} [options] COMMAND", program);
@@ -51,7 +34,7 @@ Commands:
 ";
 }
 
-fn parse_arguments(opts: &Options, args: Vec<String>) -> Result<Matches, String> {
+fn parse_arguments(opts: &Options, args: &Vec<String>) -> Result<Matches, String> {
     let program = args[0].clone();
 
 
@@ -68,6 +51,61 @@ fn parse_arguments(opts: &Options, args: Vec<String>) -> Result<Matches, String>
     }
 }
 
+fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
+    let m = try!(parse_arguments(&opts, &args));
+
+    // Arguments are valid
+    let app_root = m.opt_str("a").unwrap_or(String::from("."));
+    let image_name = m.opt_str("i").unwrap_or(String::from("devbase"));
+
+    // TODO: Handle bad app_root
+    let app = RailsApp::from(app_root).unwrap();
+
+    // TODO: Handle bad image
+    let image = app.image(&image_name);
+
+    let mut i = 0;
+    let args = m.free;
+    if i >= args.len() {
+        return Err(String::from("argument missing"));
+    }
+    match args[i].as_ref() {
+        "digest" => {
+            println!("{}", app.digest())
+        },
+        "command" => {
+        },
+        "image" => {
+            i += 1;
+            if i >= args.len() {
+                return Err(String::from("argument missing"));
+            }
+            match args[i].as_ref() {
+                "list" => {
+                },
+                "info" => {
+                },
+                "label" => {
+                },
+                "build" => {
+                    println!("building");
+                    image.build();
+                },
+                "push" => {
+                },
+                "pull" => {
+                },
+                "clean" => {
+                },
+                _ => return Err(String::from("unknown image command")),
+            }
+        },
+        _ => return Err(String::from("unknown command")),
+    }
+
+    return Ok(())
+}
+
 fn main() {
     let mut opts = Options::new();
     opts.optopt("a", "", "Location of Application. Defaults to '.'", "APP");
@@ -75,75 +113,12 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
 
     let args: Vec<String> = env::args().collect();
-    match parse_arguments(&opts, args) {
-        Ok(m) => {
-            // Arguments are valid
-            let app_root = m.opt_str("a").unwrap_or(String::from("."));
-            let image_name = m.opt_str("i").unwrap_or(String::from("devbase"));
 
-            // TODO: Handle bad app_root
-            let app = RailsApp::from(app_root).unwrap();
-
-            // TODO: Handle bad image
-            let image = app.image(&image_name);
-
-            let mut i = 0;
-            let args = m.free;
-            if i >= args.len() {
-                panic!("argument missing");
-            }
-            match args[i].as_ref() {
-                "digest" => {
-                    println!("{}", app.digest())
-                },
-                "command" => {
-                },
-                "image" => {
-                    i += 1;
-                    if i >= args.len() {
-                        panic!("argument missing");
-                    }
-                    match args[i].as_ref() {
-                        "list" => {
-                        },
-                        "info" => {
-                        },
-                        "label" => {
-                        },
-                        "build" => {
-                            println!("building");
-                            image.build();
-                        },
-                        "push" => {
-                        },
-                        "pull" => {
-                        },
-                        "clean" => {
-                        },
-                        _ => {
-                        },
-                    }
-                },
-                _ => {
-                },
-            }
-
-
-/*
-            println!("{}", i.dockerfile());
-            i.build();
-
-            let i = a.image("devbase")
-            i.build()
-            i.label()
-
-            let c = a.command("exec")
-            c.run(args)
-*/
-        },
-        Err(f) => {
-            println!("{}", f.to_string());
-            exit(1);
-        },
+    match run(&opts, &args) {
+      Ok(_) => {},
+      Err(msg) => {
+        println!("{}", msg.to_string());
+        exit(1);
+      }
     }
 }

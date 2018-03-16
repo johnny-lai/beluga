@@ -2,9 +2,7 @@ mod rsc;
 
 use base64;
 use handlebars::{Handlebars, Helper, RenderContext, RenderError};
-use libc::sprintf;
 use std::fs;
-use std::fmt;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
