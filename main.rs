@@ -6,7 +6,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate sha1;
-extern crate yaml_rust;
+extern crate serde_yaml;
 
 mod beluga;
 

@@ -1,8 +1,12 @@
 mod rsc;
+mod yml;
 
 use base64;
 use handlebars::{Handlebars, Helper, RenderContext, RenderError};
+use serde_yaml;
 use sha1;
+use std::collections::HashMap;
+use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -11,7 +15,6 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio, ExitStatus};
-//use yaml_rust::{YamlLoader, YamlEmitter};
 
 //= Image ======================================================================
 #[derive(Serialize, Deserialize)]
@@ -87,11 +90,7 @@ impl<'a> Image<'a> {
     }
 }
 
-//= RailsApp ===================================================================
-pub struct RailsApp {
-    root: PathBuf
-}
-
+//= utils ======================================================================
 fn sha1_update(m: &mut sha1::Sha1, file_name: &str) {
     let contents = fs::File::open(file_name)
        .map_err(|err| err.to_string())
@@ -104,13 +103,125 @@ fn sha1_update(m: &mut sha1::Sha1, file_name: &str) {
     m.update(contents.unwrap().as_bytes());
 }
 
+
+//= Options ====================================================================
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct AppDef {
+    version: String,
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ImageDef {
+    tag: String,
+    id_rsa: String,
+    from: String,
+    extra_packages: Vec<String>,
+    extra_build_instructions: Vec<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CommandDef {
+    command: String,
+    image: String,
+    environment: HashMap<String, String>,
+    extra_hosts: Vec<String>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Config {
+    app: AppDef,
+    images: HashMap<String, ImageDef>,
+    commands: HashMap<String, CommandDef>,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        let mut images = HashMap::new();
+        /*images.insert(
+            String::from("devbase"),
+            ImageDef {
+                tag: String::from("beluga-devbase:%s"),
+                id_rsa: String::from("~/.ssh/id_rsa"),
+                from: String::from("alpine"),
+                extra_packages: vec![],
+                extra_build_instructions: vec![],
+            });
+        */
+        return Config{
+            app: AppDef {
+                version: String::from(""),
+            },
+            images: images ,
+            commands: HashMap::new(),
+        };
+    }
+}
+
+impl Config {
+    pub fn from(p: &Path) -> Result<Config, String> {
+        return Config::from_yml(yml::Config::from(p));
+    }
+
+    pub fn from_yml(r: Result<yml::Config, String>) -> Result<Config, String> {
+        match r {
+            Ok(y) => {
+                let mut c: Config = Default::default();
+                match y.app {
+                    Some(app) => {
+                        c.app.version = app.version.unwrap_or(String::from(""));
+                    },
+                    None => {},
+                }
+                for (key, image) in &y.images {
+                    if let Some(x) = c.images.get_mut(key) {
+                        if let Some(ref v) = image.tag {
+                            x.tag = v.clone();
+                        }
+                        if let Some(ref v) = image.id_rsa {
+                            x.id_rsa = v.clone();
+                        }
+                        if let Some(ref v) = image.from {
+                            x.from = v.clone();
+                        }
+                        if let Some(ref v) = image.extra_packages {
+                            x.extra_packages = v.clone();
+                        }
+                        if let Some(ref v) = image.extra_build_instructions {
+                            x.extra_build_instructions = v.clone();
+                        }
+                    }
+                }
+                for (key, command) in &y.commands {
+                }
+                println!("{:?}", c);
+                return Ok(c)
+            }
+            Err(e) => { return Err(e) }
+        }
+    }
+}
+
+//= RailsApp ===================================================================
+pub struct RailsApp {
+    root: PathBuf,
+    config: Config,
+}
+
 impl RailsApp {
     pub fn from(r: String) -> Result<RailsApp, io::Error> {
         let srcdir = PathBuf::from(r);
-        match fs::canonicalize(&srcdir) {
-            Ok(m) => { return Ok(RailsApp{root: m}) }
-            Err(e) => return Err(e),
-        };
+        return fs::canonicalize(&srcdir)
+            .map(|m| {
+                let mut cfg_path = m.clone();
+                cfg_path.push("config");
+                cfg_path.push("beluga.yml");
+
+                let config = Config::from(cfg_path.as_path());
+                RailsApp{
+                    root: m,
+                    config: config.unwrap(),
+                }
+            });
     }
 
     fn image_label(&self, image_name: &str) -> String {
@@ -119,6 +230,9 @@ impl RailsApp {
 
     pub fn digest(&self) -> Result<String, String> {
         let mut m = sha1::Sha1::new();
+
+        let version = &self.config.app.version;
+        m.update(version.as_bytes());
 
         // .ruby-version package.json npm-shrinkwrap.json Gemfile Gemfile.lock
         sha1_update(&mut m, ".ruby-version");
