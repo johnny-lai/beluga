@@ -75,6 +75,12 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
             println!("{}", app.digest().unwrap())
         },
         "command" => {
+            i += 1;
+            if i >= args.len() {
+                return Err(String::from("argument missing"));
+            }
+
+            //let command = app.command(args[i].as_ref());
         },
         "image" => {
             i += 1;
@@ -90,7 +96,7 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
                 },
                 "build" => {
                     println!("building");
-                    image.build();
+                    image.unwrap().build();
                 },
                 "push" => {
                 },

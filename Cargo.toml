@@ -15,4 +15,4 @@ sha1 = "0.6.0"
 
 [[bin]]
 name = "beluga"
-path = "main.rs"
+path = "src/main.rs"
