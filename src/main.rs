@@ -7,10 +7,11 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate sha1;
 extern crate serde_yaml;
+extern crate tilde_expand;
 
 mod beluga;
 
-use beluga::RailsApp;
+use beluga::rails;
 use getopts::Options;
 use getopts::Matches;
 use std::env;
@@ -60,7 +61,7 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
     let image_name = m.opt_str("i").unwrap_or(String::from("devbase"));
 
     // TODO: Handle bad app_root
-    let app = RailsApp::from(app_root).unwrap();
+    let app = rails::App::from(app_root).unwrap();
 
     // TODO: Handle bad image
     let image = app.image(&image_name);
@@ -91,6 +92,7 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
                 "list" => {
                 },
                 "info" => {
+                    println!("{}", image.unwrap().dockerfile)
                 },
                 "label" => {
                 },

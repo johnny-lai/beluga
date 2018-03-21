@@ -6,10 +6,10 @@ RUN curl -sL https://deb.nodesource.com/setup_6.x | bash - && apt-get update && 
 RUN touch /etc/sudoers
 
 WORKDIR /entrypoints
-RUN {{write_rsc \"entrypoint.sh\" \"devbase.sh\"}}
-ENTRYPOINT ['/entrypoints/devbase.sh']
+RUN {{write_rsc \"entrypoint.sh\" \"devbase.sh\"}} && \\
+    chmod a+x devbase.sh
+ENTRYPOINT [\"/entrypoints/devbase.sh\"]
 
-{{build_instructions}}
 ";
 
 pub const NPM_INSTALL: &'static str = "
@@ -21,8 +21,9 @@ RUN NODE_ENV=production npm install
 pub const GEM_INSTALL: &'static str = "
 WORKDIR /build/
 COPY Gemfile Gemfile.lock ./
-RUN mkdir /root/.ssh && \\
-    echo '{{id_rsa}}' > /root/.ssh/id_rsa && \\
+RUN sed -i.bak -E -e 's/^.*gem.*(path:|:path) .*$//' Gemfile && \\
+    mkdir /root/.ssh && \\
+    echo '{{id_rsa}}' | base64 -d > /root/.ssh/id_rsa && \\
     chmod 600 /root/.ssh/id_rsa && \\
     echo 'Host github.com\\n\\tUser git\\n\\tStrictHostKeyChecking no\\n' >> /root/.ssh/config && \\
     mkdir -p /usr/local/bundle && \\
@@ -33,8 +34,7 @@ ENV BUNDLE_GEMFILE Gemfile
 ";
 
 //- entrypoint_sh --------------------------------------------------------------
-pub const ENTRYPOINT_SH: &'static str = "
-#!/bin/bash
+pub const ENTRYPOINT_SH: &'static str = "#!/bin/bash
 
 # Create links
 if [ ! -d node_modules ]; then

@@ -1,4 +1,5 @@
 mod rsc;
+pub mod rails;
 
 use base64;
 use handlebars::{Handlebars, Helper, RenderContext, RenderError};
@@ -17,7 +18,7 @@ use std::process::{Command, Stdio, ExitStatus};
 #[derive(Serialize, Deserialize)]
 struct BuildOptions {
     from: String,
-    build_instructions: String,
+    id_rsa: String,
 }
 
 fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), RenderError> {
@@ -28,18 +29,21 @@ fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), 
     }
 
     rc.writer.write(b"echo ");
-    if from == Some("entrypoint.sh") {
-        try!(rc.writer.write(base64::encode(rsc::ENTRYPOINT_SH).into_bytes().as_ref()));
-    }
+    let resource = match from {
+        Some("entrypoint.sh") => rsc::ENTRYPOINT_SH,
+        Some(&_) => "",
+        None => "",
+    };
+    try!(rc.writer.write(base64::encode(resource).into_bytes().as_ref()));
     rc.writer.write(b" | base64 -d > ");
     rc.writer.write(to.unwrap().as_bytes());
     Ok(())
 }
 
 pub struct Image<'a> {
-    label: String,
-    app_root: &'a PathBuf,
-    dockerfile: String,
+    pub label: String,
+    pub app_root: &'a PathBuf,
+    pub dockerfile: String,
 }
 
 impl<'a> Image<'a> {
@@ -119,28 +123,6 @@ pub struct ImageDef {
 impl ImageDef {
     fn default_id_rsa() -> String {
         "~/.ssh/id_rsa".to_string()
-    }
-
-    fn build_instructions(&self) -> String {
-        let mut str = String::new();
-        str.push_str(rsc::NPM_INSTALL);
-        str.push_str(rsc::GEM_INSTALL);
-        // str.push_str(RUN apt-get install -y {{extra_packages}});
-        // str.push_str(extra_build_instructions);
-        return str;
-    }
-
-    fn build_options(&self) -> BuildOptions {
-        return BuildOptions {
-            from: self.from.clone(),
-            build_instructions: self.build_instructions(),
-        };
-    }
-
-    fn dockerfile_from(&self, template: String) -> String {
-        let mut reg = Handlebars::new();
-        reg.register_helper("write_rsc", Box::new(write_rsc));
-        return reg.render_template(&template, &self.build_options()).unwrap();
     }
 }
 
@@ -256,71 +238,5 @@ fn config_test_from_str() {
   devbase:
     tag: tick-%s"
         ), Ok(expected));
-    }
-}
-
-//= RailsApp ===================================================================
-pub struct RailsApp {
-    root: PathBuf,
-    config: Config,
-}
-
-impl RailsApp {
-    pub fn from(r: String) -> Result<RailsApp, String> {
-        let srcdir = PathBuf::from(r);
-        fs::canonicalize(&srcdir)
-            .map_err(|e| e.to_string())
-            .map(|m| {
-                let mut cfg_path = m.clone();
-                cfg_path.push("config");
-                cfg_path.push("beluga.yml");
-
-                let mut config = Config::from(cfg_path.as_path()).unwrap();
-                {
-                    let devbase = config.images.get_mut("devbase").unwrap();
-                    if devbase.from.is_empty() {
-                        // TODO: Read .ruby-version here
-                        devbase.from = "ruby:2.4.3".to_string();
-                    }
-                }
-                RailsApp {
-                    root: m,
-                    config: config,
-                }
-            })
-    }
-
-    fn image_label(&self, image_name: &str) -> String {
-        // TODO: Perform sprintf
-        return format!("{}:{}", image_name, self.digest().unwrap());
-    }
-
-    pub fn digest(&self) -> Result<String, String> {
-        let mut m = sha1::Sha1::new();
-
-        let version = &self.config.app.version;
-        m.update(version.as_bytes());
-
-        // .ruby-version package.json npm-shrinkwrap.json Gemfile Gemfile.lock
-        sha1_update(&mut m, ".ruby-version");
-        sha1_update(&mut m, "package.json");
-        sha1_update(&mut m, "npm-shrinkwrap.json");
-        sha1_update(&mut m, "Gemfile");
-        sha1_update(&mut m, "Gemfile.lock");
-
-        return Ok(m.digest().to_string());
-    }
-
-    pub fn image(&self, name: &str) -> Option<Image> {
-        match self.config.images.get(name) {
-            Some(imgdef) => {
-                return Some(Image{
-                    label: self.image_label(imgdef.tag.as_ref()),
-                    app_root: &self.root,
-                    dockerfile: imgdef.dockerfile_from(String::from(rsc::DEVBASE)),
-                });
-            },
-            None => { return None }
-        }
     }
 }
