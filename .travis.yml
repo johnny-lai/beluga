@@ -2,3 +2,9 @@ language: rust
 rust:
   - stable
 cache: cargo
+deploy:
+  provider: releases
+  file: "target/release/beluga"
+  skip_cleanup: true
+  on:
+    tags: true
