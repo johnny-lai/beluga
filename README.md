@@ -125,3 +125,8 @@ $ beluga -i testbase image build
 ```
 $ beluga -i testbase exec bash
 ```
+
+
+## Credits
+
+* Uses ci from https://github.com/japaric/rust-cross: Copyright (c) 2016 Jorge Aparicio, MIT License

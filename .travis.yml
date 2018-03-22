@@ -1,10 +1,69 @@
-language: rust
-rust:
-  - stable
-cache: cargo
+language: generic
+
+matrix:
+  include:
+    # Note: apt packages are the C cross compiler and the cross compiled C library
+    - env: TARGET=aarch64-unknown-linux-gnu
+      dist: trusty
+      sudo: required
+    - env: TARGET=arm-unknown-linux-gnueabi
+      addons:
+        apt:
+          packages:
+            - gcc-arm-linux-gnueabi
+            - libc6-armel-cross
+            - libc6-dev-armel-cross
+    - env: TARGET=arm-unknown-linux-gnueabihf
+      addons:
+        apt:
+          packages: &armhf
+            - gcc-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+    - env: TARGET=armv7-unknown-linux-gnueabihf
+      addons:
+        apt:
+          packages: *armhf
+    - env: TARGET=i686-unknown-linux-musl
+      addons:
+        apt:
+          packages: &i686
+            - gcc-multilib
+    - env: TARGET=i686-unknown-linux-gnu
+      addons:
+        apt:
+          packages: *i686
+    - env: TARGET=mipsel-unknown-linux-musl
+    - env: TARGET=x86_64-unknown-linux-musl
+    - env: TARGET=x86_64-pc-windows-gnu
+      dist: trusty
+      sudo: required
+      addons:
+        apt:
+          packages:
+            - gcc-mingw-w64
+
+install:
+  - export PATH="$PATH:$HOME/.cargo/bin"
+  - export STAGING_DIR="$HOME/openwrt"
+  - bash ci/install.sh
+  - export PATH="$PATH:$(find $STAGING_DIR -maxdepth 1 -name 'toolchain*' -print -quit)/bin"
+
+script:
+  - bash ci/script.sh
+
+branches:
+  only:
+    - auto
+    - master
+    - master_rust
+
 deploy:
   provider: releases
-  file: "target/release/beluga"
-  skip_cleanup: true
+  api_key:
+    secure: sc9YjIsnUlJDM7gpWJnZZU0Y7MCJIvou9UViarBFPKqM18qYpGG2FDfGdQp/p2kNmMU6M36JyMsZF3doUYSA1Epwkf5TOebJfmcoqBNMuiBM+ivzG4SH+h+AKgxRxODtDXQxU/tnePcoku/MpWKtqRA7idlyHeHbRO3oCLiZ2kw8y6y1wOhtbz/XbDx9Do+zdsH04uN5Z7RkcvysqqqZcI/OoaOniVWrjKkl1JzYEr+GFbV6Bt4XXsExS2fl6CnLR/8sjlkx1w/GQ6O11mdVgfHwh+pVz4vmdd9zIcv3fFtZtLq5jRAjs4GBJeHjjs60JjrHcSmCqSbxpX3TePILmSXDukv4dvdhIZ+vEnvn075wcgGTXQZb4fmXpjhsFj6nxQglp1SYqPjacbekcoopPJx9NdG+NWOO6Aa736E0Kgjcv1uOrBtjhILtDzYsQOL4L8zzP6c/80Mn03LDu8SX2HOYd5rDhqK34h4YFG7yjBrjZC1scM9//8pjoxsrg84NhyT+Wj4Ypp/h5hLuWZrIqoNR8OZcqsY6wUL9u2gMsYOQ0HHIYo3qex6aW4iSnPwOIeuRGAC1AkvnYBExJm2U2Mhb2RFrJMWOz0L8e2JV8Q7/I1XWPAAeMa8zZzV9XZABDrKntiSlYtBbzDGR2aMw/NROaccS8gCeAekJnpwgR00=
+  file: target/release/beluga
   on:
+    repo: johnny-lai/beluga
+    branch: master_rust
     tags: true
