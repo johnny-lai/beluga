@@ -10,7 +10,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio, ExitStatus};
+use std::process;
 use tilde_expand::tilde_expand;
 
 pub struct Dockerfile<'a> {
@@ -75,8 +75,9 @@ impl<'a> Dockerfile<'a> {
 
 //= RailsApp ===================================================================
 pub struct App {
-    root: PathBuf,
-    config: Config,
+    pub root: PathBuf,
+    pub config: Config,
+
     ruby_version: String,
 }
 
@@ -108,9 +109,8 @@ impl App {
             })
     }
 
-    fn image_label(&self, image_name: &str) -> String {
-        // TODO: Perform sprintf
-        return format!("{}:{}", image_name, self.digest().unwrap());
+    fn image_label(&self, image_tag: &str) -> String {
+        return image_tag.replace("%s", &self.digest().unwrap());
     }
 
     pub fn digest(&self) -> Result<String, String> {
@@ -140,8 +140,21 @@ impl App {
                 };
                 return Some(Image{
                     label: label,
-                    app_root: &self.root,
+                    app_root: self.root.clone(),
                     dockerfile: d.to_string(),
+                });
+            },
+            None => { return None }
+        }
+    }
+
+    pub fn command(&self, name: &str) -> Option<Command> {
+         match self.config.commands.get(name) {
+            Some(cdef) => {
+                let image = self.image(&cdef.image).unwrap();
+                return Some(Command{
+                    image: Box::new(image),
+                    def: cdef,
                 });
             },
             None => { return None }

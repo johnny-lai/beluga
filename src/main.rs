@@ -54,7 +54,7 @@ fn parse_arguments(opts: &Options, args: &Vec<String>) -> Result<Matches, String
 }
 
 fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
-    let m = try!(parse_arguments(&opts, &args));
+    let mut m = try!(parse_arguments(&opts, &args));
 
     // Arguments are valid
     let app_root = m.opt_str("a").unwrap_or(String::from("."));
@@ -67,49 +67,56 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
     let image = app.image(&image_name);
 
     let mut i = 0;
-    let args = m.free;
-    if i >= args.len() {
-        return Err(String::from("argument missing"));
-    }
-    match args[i].as_ref() {
-        "digest" => {
-            println!("{}", app.digest().unwrap())
-        },
-        "command" => {
-            i += 1;
-            if i >= args.len() {
-                return Err(String::from("argument missing"));
-            }
+    let args = m.free.as_mut_slice();
+    if let Some((first, args)) = args.split_first() {
+        match first.as_ref() {
+            "digest" => {
+                println!("{}", app.digest().unwrap())
+            },
+            "command" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err(String::from("argument missing"));
+                }
+                //let command = app.command(args[i].as_ref());
 
-            //let command = app.command(args[i].as_ref());
-        },
-        "image" => {
-            i += 1;
-            if i >= args.len() {
-                return Err(String::from("argument missing"));
+
+            },
+            "image" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err(String::from("argument missing"));
+                }
+                match args[i].as_ref() {
+                    "list" => {
+                        for (name, _) in &app.config.images {
+                            println!("{}", name);
+                        }
+                    },
+                    "info" => {
+                        println!("{}", image.unwrap().dockerfile)
+                    },
+                    "label" => {
+                        println!("{}", image.unwrap().label);
+                    },
+                    "build" => {
+                        println!("building");
+                        image.unwrap().build();
+                    },
+                    "push" => {
+                    },
+                    "pull" => {
+                    },
+                    "clean" => {
+                    },
+                    _ => return Err(String::from("unknown image command")),
+                }
+            },
+            cmd => {
+                let command = app.command(cmd).expect("unknown command");
+                command.exec(args.to_vec());
             }
-            match args[i].as_ref() {
-                "list" => {
-                },
-                "info" => {
-                    println!("{}", image.unwrap().dockerfile)
-                },
-                "label" => {
-                },
-                "build" => {
-                    println!("building");
-                    image.unwrap().build();
-                },
-                "push" => {
-                },
-                "pull" => {
-                },
-                "clean" => {
-                },
-                _ => return Err(String::from("unknown image command")),
-            }
-        },
-        _ => return Err(String::from("unknown command")),
+        }
     }
 
     return Ok(())

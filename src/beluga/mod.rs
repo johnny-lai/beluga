@@ -12,7 +12,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio, ExitStatus};
+use std::process;
 
 //= Image ======================================================================
 #[derive(Serialize, Deserialize)]
@@ -40,22 +40,21 @@ fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), 
     Ok(())
 }
 
-pub struct Image<'a> {
+pub struct Image {
     pub label: String,
-    pub app_root: &'a PathBuf,
+    pub app_root: PathBuf,
     pub dockerfile: String,
 }
 
-impl<'a> Image<'a> {
-    pub fn build(&self) -> io::Result<ExitStatus> {
-        println!("{}", self.dockerfile);
-        let mut child = Command::new("docker")
+impl Image {
+    pub fn build(&self) -> io::Result<process::ExitStatus> {
+        let mut child = process::Command::new("docker")
                     .arg("build")
                     .arg("-f")
                     .arg("-")
                     .arg(self.app_root.to_str().unwrap())
-                    .stdin(Stdio::piped())
-                    .stdout(Stdio::inherit())
+                    .stdin(process::Stdio::piped())
+                    .stdout(process::Stdio::inherit())
                     .spawn()
                     .expect("failed to execute process");
         {
@@ -65,8 +64,63 @@ impl<'a> Image<'a> {
 
         return child.wait()
     }
+}
 
-    pub fn exec(&self) {
+//= Command ====================================================================
+pub struct Command<'a> {
+    image: Box<Image>,
+    def: &'a CommandDef,
+}
+
+impl<'a> Command<'a> {
+    pub fn exec(&self, args: Vec<String>) -> io::Result<process::ExitStatus>  {
+        println!("{:?}", args);
+
+        let mut cargs = Vec::<String>::new();
+
+        cargs.push("run".to_string());
+        cargs.push("--rm".to_string());
+        cargs.push("-it".to_string());
+
+        // Add volume mounts
+        cargs.push("-v".to_string());
+        cargs.push(format!("{}:/app", self.image.app_root.to_str().unwrap()));
+        cargs.push("-w".to_string());
+        cargs.push("/app".to_string());
+
+        cargs.push("-e".to_string());
+        cargs.push("IN_DOCKER=true".to_string());
+
+        // -e DEV_UID=#{Process.uid}
+        // -e DEV_GID=#{Process.gid}
+
+        cargs.push("--net=bridge".to_string());
+
+        // Add environment
+        for (k, v) in &self.def.environment {
+            cargs.push("-e".to_string());
+            cargs.push(format!("{}={}", k, v));
+        }
+
+        // TODO: Add hosts
+
+        // Image to run
+        cargs.push(self.image.label.clone());
+
+        // Command to run
+        let run_cmd = self.def.command.replace("%s", &args.join(" "));
+        cargs.push(run_cmd);
+
+        println!("{:?}", cargs);
+
+        // Spawn
+        let mut child = process::Command::new("docker")
+            .stdin(process::Stdio::inherit())
+            .stdout(process::Stdio::inherit())
+            .args(cargs)
+            .spawn().expect("failed to execute process");
+
+        return child.wait();
     }
 }
 
@@ -105,19 +159,19 @@ impl AppDef {
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ImageDef {
-    tag: String,
+    pub tag: String,
 
     #[serde(default = "ImageDef::default_id_rsa")]
-    id_rsa: String,
+    pub id_rsa: String,
 
     #[serde(default = "String::new")]
-    from: String,
+    pub from: String,
 
     #[serde(default = "Vec::new")]
-    extra_packages: Vec<String>,
+    pub extra_packages: Vec<String>,
 
     #[serde(default = "Vec::new")]
-    extra_build_instructions: Vec<String>,
+    pub extra_build_instructions: Vec<String>,
 }
 
 impl ImageDef {
@@ -128,16 +182,16 @@ impl ImageDef {
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommandDef {
-    command: String,
+    pub command: String,
 
     #[serde(default = "CommandDef::default_image")]
-    image: String,
+    pub image: String,
 
     #[serde(default = "HashMap::new")]
-    environment: HashMap<String, String>,
+    pub environment: HashMap<String, String>,
 
     #[serde(default = "Vec::new")]
-    extra_hosts: Vec<String>,
+    pub extra_hosts: Vec<String>,
 }
 
 impl CommandDef {
@@ -149,13 +203,13 @@ impl CommandDef {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "AppDef::new")]
-    app: AppDef,
+    pub app: AppDef,
 
     #[serde(default = "HashMap::new")]
-    images: HashMap<String, ImageDef>,
+    pub images: HashMap<String, ImageDef>,
 
     #[serde(default = "HashMap::new")]
-    commands: HashMap<String, CommandDef>,
+    pub commands: HashMap<String, CommandDef>,
 }
 
 impl Default for Config {
@@ -170,12 +224,23 @@ impl Default for Config {
                 extra_packages: vec![],
                 extra_build_instructions: vec![],
             });
+
+        let mut commands = HashMap::new();
+        commands.insert(
+            String::from("exec"),
+            CommandDef {
+                command: "%s".to_string(),
+                image: "devbase".to_string(),
+                environment: HashMap::new(),
+                extra_hosts: vec![],    // TODO: Add db here?
+            });
+
         return Config{
             app: AppDef {
                 version: String::from(""),
             },
-            images: images ,
-            commands: HashMap::new(),
+            images: images,
+            commands: commands,
         };
     }
 }
@@ -202,7 +267,6 @@ impl Config {
         let mut ret: Config = Default::default();
         let cfg: Config = try!(serde_yaml::from_str(&txt).map_err(|e| e.to_string()));
         ret.extend(cfg);
-        println!("{:?}", ret);
         return Ok(ret);
     }
 
