@@ -61,22 +61,23 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
     let image_name = m.opt_str("i").unwrap_or(String::from("devbase"));
 
     // TODO: Handle bad app_root
-    let app = rails::App::from(app_root).unwrap();
+    let app = try!(rails::App::from(app_root));
 
     // TODO: Handle bad image
-    let image = app.image(&image_name);
+    let image = try!(app.image(&image_name).ok_or_else(|| format!("unknown image \"{}\"", image_name)));
 
     let mut i = 0;
     let args = m.free.as_mut_slice();
     if let Some((first, args)) = args.split_first() {
         match first.as_ref() {
             "digest" => {
-                println!("{}", app.digest().unwrap())
+                let digest = try!(app.digest());
+                println!("{}", digest);
             },
             "command" => {
                 i += 1;
                 if i >= args.len() {
-                    return Err(String::from("argument missing"));
+                    return Err("argument missing".to_string());
                 }
                 //let command = app.command(args[i].as_ref());
 
@@ -85,7 +86,7 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
             "image" => {
                 i += 1;
                 if i >= args.len() {
-                    return Err(String::from("argument missing"));
+                    return Err("argument missing".to_string());
                 }
                 match args[i].as_ref() {
                     "list" => {
@@ -94,14 +95,13 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
                         }
                     },
                     "info" => {
-                        println!("{}", image.unwrap().dockerfile)
+                        println!("{}", image.dockerfile)
                     },
                     "label" => {
-                        println!("{}", image.unwrap().label);
+                        println!("{}", image.label);
                     },
                     "build" => {
-                        println!("building");
-                        image.unwrap().build();
+                        try!(image.build().map_err(|e| format!("{}", e)));
                     },
                     "push" => {
                     },
@@ -109,12 +109,12 @@ fn run(opts: &Options, args: &Vec<String>) -> Result<(), String> {
                     },
                     "clean" => {
                     },
-                    _ => return Err(String::from("unknown image command")),
+                    _ => return Err("unknown image command".to_string()),
                 }
             },
             cmd => {
-                let command = app.command(cmd).expect("unknown command");
-                command.exec(args.to_vec());
+                let command = try!(app.command(cmd).ok_or_else(|| format!("unknown command \"{}\"", cmd)));
+                try!(command.exec(args.to_vec()).map_err(|e| format!("{}", e)));
             }
         }
     }

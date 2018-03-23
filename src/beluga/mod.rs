@@ -28,15 +28,15 @@ fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), 
         return Ok(())
     }
 
-    rc.writer.write(b"echo ");
+    try!(rc.writer.write(b"echo "));
     let resource = match from {
         Some("entrypoint.sh") => rsc::ENTRYPOINT_SH,
         Some(&_) => "",
         None => "",
     };
     try!(rc.writer.write(base64::encode(resource).into_bytes().as_ref()));
-    rc.writer.write(b" | base64 -d > ");
-    rc.writer.write(to.unwrap().as_bytes());
+    try!(rc.writer.write(b" | base64 -d > "));
+    try!(rc.writer.write(to.unwrap().as_bytes()));
     Ok(())
 }
 

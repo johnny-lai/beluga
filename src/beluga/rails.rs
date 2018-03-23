@@ -1,16 +1,10 @@
 use base64;
 use beluga::*;
-use handlebars::{Handlebars, Helper, RenderContext, RenderError, no_escape};
-use serde_yaml;
+use handlebars::no_escape;
 use sha1;
-use std::collections::HashMap;
 use std::io::Read;
-use std::path::Path;
 use std::fs;
-use std::io;
-use std::io::Write;
 use std::path::PathBuf;
-use std::process;
 use tilde_expand::tilde_expand;
 
 pub struct Dockerfile<'a> {
@@ -91,7 +85,7 @@ impl App {
                 cfg_path.push("config");
                 cfg_path.push("beluga.yml");
 
-                let mut config = Config::from(cfg_path.as_path()).unwrap();
+                let config = Config::from(cfg_path.as_path()).unwrap();
                 let ruby_version = {
                     // Read .ruby-version
                     let mut f = fs::File::open(".ruby-version").expect(".ruby-version required");
