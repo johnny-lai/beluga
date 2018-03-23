@@ -2,7 +2,8 @@ mod rsc;
 pub mod rails;
 
 use base64;
-use handlebars::{Handlebars, Helper, RenderContext, RenderError};
+use handlebars::{Handlebars, Helper, RenderContext, RenderError, no_escape};
+use pnet::datalink;
 use serde_yaml;
 use sha1;
 use std::collections::HashMap;
@@ -13,15 +14,20 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
+use users::{get_current_gid, get_current_uid};
 
-//= Image ======================================================================
-#[derive(Serialize, Deserialize)]
-struct BuildOptions {
-    from: String,
-    id_rsa: String,
+fn host_public_ip() -> String {
+    for iface in datalink::interfaces() {
+        if iface.is_up() && !iface.is_loopback() {
+            if let Some(ip) = iface.ips.iter().find(|x| x.is_ipv4()) {
+                return format!("{}", ip.ip()).to_string();
+            }
+        }
+    }
+    return "".to_string();
 }
 
-fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), RenderError> {
+fn write_rsc(h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), RenderError> {
     let from = h.param(0).unwrap().value().as_str();
     let to = h.param(1).unwrap().value().as_str();
     if to == None {
@@ -38,6 +44,13 @@ fn write_rsc (h: &Helper, _: &Handlebars, rc: &mut RenderContext) -> Result<(), 
     try!(rc.writer.write(b" | base64 -d > "));
     try!(rc.writer.write(to.unwrap().as_bytes()));
     Ok(())
+}
+
+//= Image ======================================================================
+#[derive(Serialize, Deserialize)]
+struct BuildOptions {
+    from: String,
+    id_rsa: String,
 }
 
 pub struct Image {
@@ -91,8 +104,11 @@ impl<'a> Command<'a> {
         cargs.push("-e".to_string());
         cargs.push("IN_DOCKER=true".to_string());
 
-        // -e DEV_UID=#{Process.uid}
-        // -e DEV_GID=#{Process.gid}
+        cargs.push("-e".to_string());
+        cargs.push(format!("DEV_UID={}", get_current_uid()));
+
+        cargs.push("-e".to_string());
+        cargs.push(format!("DEV_GID={}", get_current_gid()));
 
         cargs.push("--net=bridge".to_string());
 
@@ -102,7 +118,10 @@ impl<'a> Command<'a> {
             cargs.push(format!("{}={}", k, v));
         }
 
-        // TODO: Add hosts
+        // Add hosts
+        for (k, v) in &self.def.extra_hosts {
+            cargs.push(format!("--add-host={}:{}", k, v));
+        }
 
         // Image to run
         cargs.push(self.image.label.clone());
@@ -190,13 +209,19 @@ pub struct CommandDef {
     #[serde(default = "HashMap::new")]
     pub environment: HashMap<String, String>,
 
-    #[serde(default = "Vec::new")]
-    pub extra_hosts: Vec<String>,
+    #[serde(default = "CommandDef::default_extra_hosts")]
+    pub extra_hosts: HashMap<String, String>,
 }
 
 impl CommandDef {
     fn default_image() -> String {
         "devbase".to_string()
+    }
+
+    fn default_extra_hosts() -> HashMap<String, String> {
+        let mut extra_hosts = HashMap::new();
+        extra_hosts.insert("db".to_string(), host_public_ip());
+        return extra_hosts;
     }
 }
 
@@ -232,7 +257,7 @@ impl Default for Config {
                 command: "%s".to_string(),
                 image: "devbase".to_string(),
                 environment: HashMap::new(),
-                extra_hosts: vec![],    // TODO: Add db here?
+                extra_hosts: CommandDef::default_extra_hosts(),
             });
 
         return Config{
@@ -257,7 +282,15 @@ impl Config {
             });
         match contents {
             Ok(txt) => {
-                return Config::from_str(txt.as_ref());
+                let mut reg = Handlebars::new();
+                reg.register_escape_fn(no_escape);
+                let out = try!(
+                    reg.render_template(txt.as_ref(), &json!({"host_public_ip": host_public_ip()}))
+                       .map_err(|e| e.to_string())
+                );
+                println!("{}", out);
+
+                return Config::from_str(out.as_ref());
             }
             Err(e) => { return Err(e) }
         }

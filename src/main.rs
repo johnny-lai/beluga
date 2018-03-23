@@ -1,13 +1,16 @@
 extern crate base64;
 extern crate getopts;
 extern crate handlebars;
+extern crate pnet;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 extern crate sha1;
 extern crate serde_yaml;
 extern crate tilde_expand;
+extern crate users;
 
 mod beluga;
 
