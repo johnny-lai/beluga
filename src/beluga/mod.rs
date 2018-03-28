@@ -4,11 +4,13 @@ pub mod rails;
 use base64;
 use handlebars::{Handlebars, Helper, RenderContext, RenderError, no_escape};
 use pnet::datalink;
+use serde::de::{self, Deserialize, Deserializer, Visitor, SeqAccess, MapAccess};
 use serde_yaml;
 use sha1;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
+use std::fmt;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -209,7 +211,7 @@ pub struct CommandDef {
     #[serde(default = "HashMap::new")]
     pub environment: HashMap<String, String>,
 
-    #[serde(default = "CommandDef::default_extra_hosts")]
+    #[serde(default = "CommandDef::default_extra_hosts", deserialize_with = "CommandDef::deserialize_extra_hosts")]
     pub extra_hosts: HashMap<String, String>,
 }
 
@@ -223,7 +225,69 @@ impl CommandDef {
         extra_hosts.insert("db".to_string(), host_public_ip());
         return extra_hosts;
     }
+
+    fn deserialize_extra_hosts<'de, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
+    where D: Deserializer<'de>
+    {
+        // This is a Visitor that forwards string types to T's `FromStr` impl and
+        // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
+        // keep the compiler from complaining about T being an unused generic type
+        // parameter. We need T in order to know the Value type for the Visitor
+        // impl.
+        struct HashOrArrayVisitor;
+
+        impl<'de> Visitor<'de> for HashOrArrayVisitor
+        {
+            type Value = HashMap<String, String>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("hash or array")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<HashMap<String, String>, V::Error>
+                where V: SeqAccess<'de>
+            {
+                let mut ret: HashMap<String, String> = HashMap::new();
+                while let Some(s) = seq.next_element::<String>()? {
+                    let v: Vec<&str> = s.split(':').collect();
+                    ret.insert(v[0].to_string(), v[1].to_string());
+                }
+                Ok(ret)
+            }
+
+            fn visit_map<M>(self, visitor: M) -> Result<HashMap<String, String>, M::Error>
+                where M: MapAccess<'de>
+            {
+                // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
+                // into a `Deserializer`, allowing it to be used as the input to T's
+                // `Deserialize` implementation. T then deserializes itself using
+                // the entries from the map visitor.
+                Deserialize::deserialize(de::value::MapAccessDeserializer::new(visitor))
+            }
+        }
+
+        deserializer.deserialize_any(HashOrArrayVisitor)
+    }
 }
+
+#[test]
+fn deserialize_extra_hosts_as_array() {
+    let cdef: CommandDef = serde_yaml::from_str(
+"command: blah
+extra_hosts:
+  - db:123").expect("should accept extra_hosts as array");
+    assert_eq!(cdef.extra_hosts.get("db").unwrap(), "123");
+}
+
+#[test]
+fn deserialize_extra_hosts_as_hash() {
+    let cdef: CommandDef = serde_yaml::from_str(
+"command: blah
+extra_hosts:
+  db: 123").expect("should accept extra_hosts as hash");
+    assert_eq!(cdef.extra_hosts.get("db").unwrap(), "123");
+}
+
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
@@ -282,24 +346,30 @@ impl Config {
             });
         match contents {
             Ok(txt) => {
-                let mut reg = Handlebars::new();
-                reg.register_escape_fn(no_escape);
-                let out = try!(
-                    reg.render_template(txt.as_ref(), &json!({"host_public_ip": host_public_ip()}))
-                       .map_err(|e| e.to_string())
-                );
-                println!("{}", out);
-
-                return Config::from_str(out.as_ref());
+                return Config::from_str(txt.as_ref());
             }
             Err(e) => { return Err(e) }
         }
     }
 
     pub fn from_str(txt: &str) -> Result<Config, String> {
+        // Old ERB "support"
+        let template = txt.replace("<%=", "{{")
+                          .replace("%>", "}}");
+
+        // Process as handlebars template
+        let mut reg = Handlebars::new();
+        reg.register_escape_fn(no_escape);
+        let out = try!(
+            reg.render_template(template.as_ref(), &json!({"host_public_ip": host_public_ip()}))
+               .map_err(|e| e.to_string())
+        );
+
+        // Parse YAML to struct
         let mut ret: Config = Default::default();
-        let cfg: Config = try!(serde_yaml::from_str(&txt).map_err(|e| e.to_string()));
+        let cfg: Config = try!(serde_yaml::from_str(&out).map_err(|e| e.to_string()));
         ret.extend(cfg);
+
         return Ok(ret);
     }
 
@@ -311,29 +381,60 @@ impl Config {
 }
 
 #[test]
-fn config_test_from_str() {
+fn config_from_empty() {
     assert_eq!(Config::from_str(""), Err("EOF while parsing a value".to_string()));
+}
 
-    { // Override app.version
-        let mut expected: Config = Default::default();
-        expected.app.version = "2".to_string();
-        assert_eq!(Config::from_str(
+// Override app.version
+#[test]
+fn config_from_override_app_version() {
+    let mut expected: Config = Default::default();
+    expected.app.version = "2".to_string();
+    assert_eq!(Config::from_str(
 "app:
   version: 2"
-        ), Ok(expected));
-    }
+    ), Ok(expected));
+}
 
-    { // Override devbase.tag
-        let mut expected: Config = Default::default();
-        {
-            let devbase = expected.images.get_mut(&"devbase".to_string()).unwrap();
-            devbase.tag = "tick-%s".to_string();
-            devbase.from = "".to_string();
-        }
-        assert_eq!(Config::from_str(
+// Override devbase.tag
+#[test]
+fn config_from_override_devbase_tag() {
+    let mut expected: Config = Default::default();
+    {
+        let devbase = expected.images.get_mut(&"devbase".to_string()).unwrap();
+        devbase.tag = "tick-%s".to_string();
+        devbase.from = "".to_string();
+    }
+    assert_eq!(Config::from_str(
 "images:
   devbase:
     tag: tick-%s"
-        ), Ok(expected));
-    }
+    ), Ok(expected));
 }
+
+// With old extra_hosts format
+#[test]
+fn config_from_old_extra_hosts() {
+    let mut expected: Config = Default::default();
+    {
+        let mut extra_hosts = HashMap::new();
+        extra_hosts.insert("db".to_string(), host_public_ip());
+
+        let rspec_cmd = CommandDef{
+            command: "rspec".to_string(),
+            image: CommandDef::default_image(),
+            environment: HashMap::new(),
+            extra_hosts: extra_hosts,
+        };
+
+        expected.commands.insert("rspec".to_string(), rspec_cmd);
+    }
+    assert_eq!(Config::from_str(
+"commands:
+  rspec:
+    command: rspec
+    extra_hosts:
+      - db:<%= host_public_ip %>"
+    ), Ok(expected));
+}
+
